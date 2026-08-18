@@ -1,0 +1,23 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null",
+        ".write": "auth != null && ((!data.exists() && newData.child('players').child(auth.uid).exists()) || data.child('players').child(auth.uid).exists() || newData.child('players').child(auth.uid).exists())",
+        "players": {
+          "$uid": {
+          ".validate": "newData.hasChildren(['catId','x','z','rotation','moving','action','online','lastSeen']) && (newData.child('catId').val() == 'mabel' || newData.child('catId').val() == 'margo' || newData.child('catId').val() == 'moxie') && newData.child('x').isNumber() && newData.child('z').isNumber() && newData.child('rotation').isNumber() && newData.child('moving').isBoolean() && newData.child('online').isBoolean()"
+          }
+        },
+        "world": {
+          ".validate": "newData.hasChildren(['yarn','objects','mayhem']) && newData.child('mayhem').isNumber()"
+        },
+        "events": {
+          "$eventId": {
+            ".validate": "newData.hasChildren(['id','type','actor','at']) && newData.child('actor').val() == auth.uid && (newData.child('type').val() == 'meow' || newData.child('type').val() == 'collectYarn' || newData.child('type').val() == 'mischief' || newData.child('type').val() == 'nap')"
+          }
+        }
+      }
+    }
+  }
+}

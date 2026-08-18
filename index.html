@@ -1,540 +1,110 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Casual Cat Simulator</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #87CEEB; /* Sky blue */
-            font-family: 'Inter', sans-serif;
-            touch-action: none; /* Prevent browser zooming/scrolling */
-        }
-        #game-canvas {
-            display: block;
-            width: 100%;
-            height: 100%;
-        }
-        /* Virtual Joystick Styles */
-        #joystick-zone {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            width: 120px;
-            height: 120px;
-            background: rgba(255, 255, 255, 0.2);
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 50%;
-            touch-action: none;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #joystick-knob {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.8);
-            border-radius: 50%;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            position: absolute;
-            pointer-events: none;
-        }
-        
-        /* Loading Overlay */
-        #loading-screen {
-            transition: opacity 0.5s ease;
-        }
-        .hidden-fade {
-            opacity: 0;
-            pointer-events: none;
-        }
-    </style>
-
-    <script type="importmap">
-        {
-            "imports": {
-                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-            }
-        }
-    </script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Whisker District</title>
+<script src="./firebase-config.js"></script>
+<style>
+:root{--ink:#2b2131;--muted:#765f73;--paper:#fff8ef;--pink:#e96891;--purple:#7057a8}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Inter,system-ui,sans-serif;color:var(--ink);background:#a9ddeb;touch-action:none}button,input{font:inherit}button{cursor:pointer;border:0}button:focus-visible,input:focus-visible{outline:3px solid #1c82a1;outline-offset:3px}#game-canvas{display:block;width:100%;height:100%}.screen{position:absolute;inset:0}
+#lobby-screen{z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 20% 20%,#ffe6ee 0 16%,transparent 38%),linear-gradient(135deg,#c7eff1,#efd8ed 62%,#ffe0c9)}.lobby-card{width:min(680px,100%);padding:clamp(24px,5vw,52px);border:1px solid #fff;border-radius:32px;background:#fffaf5e8;box-shadow:0 18px 45px #321f3f38;backdrop-filter:blur(16px)}.eyebrow{margin:0 0 8px;color:var(--purple);text-transform:uppercase;letter-spacing:.17em;font-size:12px;font-weight:800}h1{margin:0;font-size:clamp(38px,8vw,68px);line-height:.95;letter-spacing:-.055em}.lobby-card>p:not(.eyebrow){max-width:560px;margin:18px 0 24px;color:var(--muted);font-size:17px;line-height:1.5}.cat-chips{display:flex;flex-wrap:wrap;gap:10px;margin:20px 0 28px}.cat-chip{padding:8px 13px;border-radius:999px;color:#fff;font-size:13px;font-weight:800}.mabel{background:#c47657}.margo{background:#636b80}.moxie{background:#8d9a89}.lobby-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.primary,.secondary{min-height:50px;padding:12px 18px;border-radius:16px;font-weight:800}.primary{color:#fff;background:linear-gradient(135deg,#e96891,#7057a8);box-shadow:0 10px 22px #7057a840}.secondary{color:var(--ink);background:#fff;border:1px solid #eadde4}.join-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}.join-row input{min-width:0;padding:12px 15px;border:1px solid #e4d6df;border-radius:15px;background:#fff;text-transform:uppercase;letter-spacing:.18em;font-weight:800}.setup-note{margin:20px 0 0;padding:12px 14px;border-radius:14px;background:#94d7bf38;color:#315d57;font-size:13px;line-height:1.45}.error-note{margin:12px 0 0;color:#a43b53;font-size:13px;font-weight:700}#loading-screen{z-index:40;display:flex;align-items:center;justify-content:center;flex-direction:column;background:#c7eff1;transition:opacity .35s ease}#loading-screen.hidden,#lobby-screen.hidden{opacity:0;pointer-events:none}.loading-paw{font-size:62px;animation:bob 1.2s ease-in-out infinite}@keyframes bob{50%{transform:translateY(-8px) rotate(-4deg)}}#hud{z-index:10;display:none;padding:16px;pointer-events:none}#hud.active{display:flex;flex-direction:column;justify-content:space-between}.hud-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.hud-card{pointer-events:auto;padding:12px 15px;border:1px solid #ffffffb3;border-radius:18px;background:#fffaf5dc;box-shadow:0 8px 22px #321f3f29;backdrop-filter:blur(12px)}.hud-card strong{font-size:19px}.small-label{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.13em;font-weight:800}.mayhem{min-width:220px}.meter{height:10px;margin-top:7px;overflow:hidden;border-radius:999px;background:#eadce5}.meter span{display:block;height:100%;width:0;border-radius:inherit;background:linear-gradient(90deg,#94d7bf,#e96891,#7057a8);transition:width .2s ease}#player-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px}.player-pill{padding:5px 8px;border-radius:999px;color:#fff;background:#765f73;font-size:11px;font-weight:800}.player-pill.self{background:#e96891}#message-box{position:absolute;top:96px;left:50%;transform:translateX(-50%) translateY(-8px);opacity:0;padding:10px 17px;border-radius:999px;color:#fff;background:#2b2131e8;transition:opacity .2s,transform .2s;white-space:nowrap}#message-box.visible{opacity:1;transform:translateX(-50%)}#joystick-zone{position:absolute;bottom:24px;left:22px;width:126px;height:126px;display:flex;align-items:center;justify-content:center;border:2px solid #ffffffa3;border-radius:50%;background:#ffffff33;pointer-events:auto}#joystick-knob{width:50px;height:50px;border-radius:50%;background:#fffffff0;box-shadow:0 5px 12px #0003;pointer-events:none}.action-stack{display:flex;gap:10px;pointer-events:auto}.action-button{min-width:92px;min-height:70px;padding:10px 14px;border:3px solid #ffffff80;border-radius:22px;color:#fff;background:linear-gradient(135deg,#e96891,#e6a13d);box-shadow:0 10px 22px #321f3f33;font-weight:900}.secondary-action{color:var(--ink);background:#fffaf5e8;border-color:#fffc}.action-button:active{transform:scale(.95)}#switch-cat-btn{min-height:42px;padding:10px 13px;border-radius:14px;color:#fff;background:linear-gradient(135deg,#7057a8,#405f9f);font-weight:800}#connection-badge{margin-top:6px;color:var(--muted);font-size:11px;font-weight:700}@media(max-width:620px){.lobby-actions{grid-template-columns:1fr}.hud-row{flex-direction:column}.mayhem{min-width:min(260px,calc(100vw - 32px))}#switch-cat-btn{align-self:flex-end}}
+</style>
+<script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.160.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"}}</script>
 </head>
 <body>
+<canvas id="game-canvas" aria-label="Whisker District 3D neighborhood"></canvas>
+<section id="lobby-screen" class="screen" aria-labelledby="game-title"><div class="lobby-card">
+<p class="eyebrow">Three-cat multiplayer</p><h1 id="game-title">Whisker<br>District</h1>
+<p>Share one neighborhood with up to three friends. Pick an open cat, make a little trouble, and leave before the humans connect the dots.</p>
+<div class="cat-chips"><span class="cat-chip mabel">Mabel · stealth</span><span class="cat-chip margo">Margo · speed</span><span class="cat-chip moxie">Moxie · distraction</span></div>
+<div class="lobby-actions"><button id="create-room-btn" class="primary">Create a room</button><button id="local-demo-btn" class="secondary">Local preview</button></div>
+<div class="join-row"><input id="room-code-input" maxlength="5" placeholder="ROOM CODE" aria-label="Room code"><button id="join-room-btn" class="secondary">Join room</button></div>
+<p id="setup-note" class="setup-note">Loading the shared animation library…</p><p id="lobby-error" class="error-note" role="alert"></p>
+</div></section>
+<section id="loading-screen" class="screen"><div class="loading-paw">🐾</div><strong id="loading-label">Loading the district…</strong></section>
+<section id="hud" class="screen" aria-live="polite"><div class="hud-row">
+<div class="hud-card"><span class="small-label">Your cat</span><strong id="cat-name">Mabel</strong><div id="connection-badge">Preview room</div></div>
+<div class="hud-card mayhem"><span class="small-label">Neighborhood mayhem</span><div class="meter"><span id="mayhem-meter"></span></div><div id="player-list"></div></div>
+<button id="switch-cat-btn" style="pointer-events:auto">Switch cat</button></div>
+<div id="message-box">Message</div><div class="hud-row"><div id="joystick-zone" aria-label="Move cat with joystick"><div id="joystick-knob"></div></div><div class="action-stack"><button id="interact-btn" class="action-button secondary-action">Chaos<br><small>E</small></button><button id="meow-btn" class="action-button">Meow!<br><small>Space</small></button></div></div></section>
+<script type="module">
+import * as THREE from 'three';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+const originalConsoleError=console.error;
+let latestConsoleError='';
+console.error=(...args)=>{latestConsoleError=args.map(value=>String(value)).join(' ');originalConsoleError(...args)};
 
-    <!-- 3D Canvas -->
-    <canvas id="game-canvas"></canvas>
-
-    <!-- UI Overlay -->
-    <div id="ui-layer" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10">
-        
-        <!-- Top Bar: Score & Cat Selector -->
-        <div class="flex justify-between items-start w-full">
-            <div class="bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg pointer-events-auto border border-white/50">
-                <h1 class="text-xl font-bold text-gray-800 tracking-tight">Yarn: <span id="score-display" class="text-pink-500">0</span></h1>
-            </div>
-            
-            <button id="switch-cat-btn" class="pointer-events-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-3 px-6 rounded-full shadow-lg active:scale-95 transition-transform border-2 border-white/20">
-                Switch Cat 🔄
-            </button>
-        </div>
-
-        <!-- Bottom Controls -->
-        <div class="flex justify-between items-end w-full pb-4">
-            <!-- Joystick Container (Left) -->
-            <div id="joystick-zone" class="pointer-events-auto">
-                <div id="joystick-knob"></div>
-            </div>
-
-            <!-- Action Button (Right) -->
-            <button id="meow-btn" class="pointer-events-auto bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold w-20 h-20 rounded-full shadow-xl active:scale-90 transition-transform border-4 border-white/30 text-lg flex items-center justify-center mr-4">
-                Meow!
-            </button>
-        </div>
-
-        <!-- Floating Message Box (for notifications) -->
-        <div id="message-box" class="absolute top-20 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full opacity-0 transition-opacity duration-300 pointer-events-none shadow-xl">
-            Message
-        </div>
-    </div>
-
-    <!-- Loading Screen -->
-    <div id="loading-screen" class="absolute inset-0 bg-sky-200 flex flex-col items-center justify-center z-50">
-        <div class="animate-bounce text-6xl mb-4">🐾</div>
-        <h2 class="text-3xl font-extrabold text-sky-800 mb-2">Cat Simulator</h2>
-        <p class="text-sky-600 font-medium">Loading world...</p>
-    </div>
-
-    <script type="module">
-        import * as THREE from 'three';
-        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-
-        // --- Game State ---
-        let score = 0;
-        let isMeowing = false;
-        const collectibles = [];
-        
-        // --- Cat Data ---
-        const catFiles = ['mabel.glb', 'margo.glb', 'moxie.glb'];
-        const catNames = ['Mabel', 'Margo', 'Moxie'];
-        const fallbackColors = [0xFFA500, 0x555555, 0xFFFFFF]; // Orange, Dark Grey, White
-        let currentCatIndex = 0;
-        let currentCatModel = null;
-        let animationMixer = null;
-        
-        // --- Three.js Setup ---
-        const canvas = document.getElementById('game-canvas');
-        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // Sky blue
-        scene.fog = new THREE.Fog(0x87CEEB, 20, 50);
-
-        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
-        
-        // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        scene.add(ambientLight);
-
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(10, 20, 10);
-        dirLight.castShadow = true;
-        dirLight.shadow.camera.top = 20;
-        dirLight.shadow.camera.bottom = -20;
-        dirLight.shadow.camera.left = -20;
-        dirLight.shadow.camera.right = 20;
-        dirLight.shadow.mapSize.width = 1024;
-        dirLight.shadow.mapSize.height = 1024;
-        scene.add(dirLight);
-
-        // --- Environment Generation ---
-        function createEnvironment() {
-            // Ground
-            const floorGeo = new THREE.PlaneGeometry(100, 100);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0x7CFC00 }); // Grass green
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.receiveShadow = true;
-            scene.add(floor);
-
-            // Fences / Borders
-            const fenceGeo = new THREE.BoxGeometry(100, 2, 1);
-            const fenceMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-            
-            const fenceN = new THREE.Mesh(fenceGeo, fenceMat);
-            fenceN.position.set(0, 1, -50);
-            fenceN.castShadow = true;
-            fenceN.receiveShadow = true;
-            scene.add(fenceN);
-
-            const fenceS = new THREE.Mesh(fenceGeo, fenceMat);
-            fenceS.position.set(0, 1, 50);
-            fenceS.castShadow = true;
-            fenceS.receiveShadow = true;
-            scene.add(fenceS);
-
-            const fenceE = new THREE.Mesh(fenceGeo, fenceMat);
-            fenceE.rotation.y = Math.PI / 2;
-            fenceE.position.set(50, 1, 0);
-            fenceE.castShadow = true;
-            fenceE.receiveShadow = true;
-            scene.add(fenceE);
-
-            const fenceW = new THREE.Mesh(fenceGeo, fenceMat);
-            fenceW.rotation.y = Math.PI / 2;
-            fenceW.position.set(-50, 1, 0);
-            fenceW.castShadow = true;
-            fenceW.receiveShadow = true;
-            scene.add(fenceW);
-
-            // Trees
-            for (let i = 0; i < 20; i++) {
-                createTree(
-                    (Math.random() - 0.5) * 80, 
-                    (Math.random() - 0.5) * 80
-                );
-            }
-        }
-
-        function createTree(x, z) {
-            const treeGroup = new THREE.Group();
-            
-            // Trunk
-            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 2);
-            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
-            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-            trunk.position.y = 1;
-            trunk.castShadow = true;
-            trunk.receiveShadow = true;
-            treeGroup.add(trunk);
-
-            // Leaves
-            const leavesGeo = new THREE.ConeGeometry(1.5, 3, 8);
-            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // Forest green
-            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
-            leaves.position.y = 3;
-            leaves.castShadow = true;
-            treeGroup.add(leaves);
-
-            treeGroup.position.set(x, 0, z);
-            scene.add(treeGroup);
-        }
-
-        // --- Collectibles (Yarn Balls) ---
-        function spawnCollectible() {
-            const yarnGeo = new THREE.SphereGeometry(0.4, 16, 16);
-            const colors = [0xFF69B4, 0x00BFFF, 0xFFD700, 0xFF4500];
-            const randomColor = colors[Math.floor(Math.random() * colors.length)];
-            const yarnMat = new THREE.MeshStandardMaterial({ color: randomColor, roughness: 0.8 });
-            
-            const yarn = new THREE.Mesh(yarnGeo, yarnMat);
-            yarn.position.set(
-                (Math.random() - 0.5) * 40,
-                0.4,
-                (Math.random() - 0.5) * 40
-            );
-            yarn.castShadow = true;
-            scene.add(yarn);
-            collectibles.push(yarn);
-        }
-
-        for (let i = 0; i < 10; i++) spawnCollectible();
-
-        // --- Model Loading & Fallbacks ---
-        const gltfLoader = new GLTFLoader();
-
-        function createFallbackCat(colorHex) {
-            const catGroup = new THREE.Group();
-            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.6 });
-            
-            // Body
-            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.4), mat);
-            body.position.y = 0.5;
-            body.castShadow = true;
-            catGroup.add(body);
-
-            // Head
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat);
-            head.position.set(0, 0.9, 0.8);
-            head.castShadow = true;
-            catGroup.add(head);
-
-            // Ears
-            const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
-            const earL = new THREE.Mesh(earGeo, mat);
-            earL.position.set(0.2, 1.3, 0.9);
-            catGroup.add(earL);
-            const earR = new THREE.Mesh(earGeo, mat);
-            earR.position.set(-0.2, 1.3, 0.9);
-            catGroup.add(earR);
-
-            // Tail
-            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8), mat);
-            tail.position.set(0, 0.7, -0.8);
-            tail.rotation.x = -Math.PI / 4;
-            catGroup.add(tail);
-
-            return catGroup;
-        }
-
-        function showMessage(msg) {
-            const msgBox = document.getElementById('message-box');
-            msgBox.innerText = msg;
-            msgBox.style.opacity = '1';
-            setTimeout(() => {
-                msgBox.style.opacity = '0';
-            }, 2000);
-        }
-
-        function loadCat(index) {
-            if (currentCatModel) {
-                scene.remove(currentCatModel);
-                currentCatModel = null;
-            }
-            if (animationMixer) {
-                animationMixer.stopAllAction();
-                animationMixer = null;
-            }
-
-            const fileName = catFiles[index];
-            const catName = catNames[index];
-            showMessage(`Selecting ${catName}...`);
-
-            gltfLoader.load(
-                fileName,
-                (gltf) => {
-                    currentCatModel = gltf.scene;
-                    
-                    // Center and scale model depending on its original size
-                    currentCatModel.scale.set(1, 1, 1);
-                    
-                    // Add shadows to all meshes inside the loaded GLTF
-                    currentCatModel.traverse((child) => {
-                        if (child.isMesh) {
-                            child.castShadow = true;
-                            child.receiveShadow = true;
-                        }
-                    });
-
-                    scene.add(currentCatModel);
-
-                    // Setup Animations if they exist
-                    if (gltf.animations && gltf.animations.length > 0) {
-                        animationMixer = new THREE.AnimationMixer(currentCatModel);
-                        // Play the first animation (usually Idle or Walk)
-                        const action = animationMixer.clipAction(gltf.animations[0]);
-                        action.play();
-                    }
-                },
-                undefined,
-                (error) => {
-                    console.warn(`Could not load ${fileName}. Using fallback model for ${catName}.`);
-                    // Use Fallback if the user hasn't provided the .glb files
-                    currentCatModel = createFallbackCat(fallbackColors[index]);
-                    scene.add(currentCatModel);
-                }
-            );
-        }
-
-        // --- Controls (Virtual Joystick) ---
-        const joystickZone = document.getElementById('joystick-zone');
-        const joystickKnob = document.getElementById('joystick-knob');
-        
-        let isDragging = false;
-        let joyVector = { x: 0, y: 0 }; // Normalized -1 to 1
-
-        function handleJoystickStart(e) {
-            isDragging = true;
-            handleJoystickMove(e);
-        }
-
-        function handleJoystickMove(e) {
-            if (!isDragging) return;
-            e.preventDefault(); // Prevent scrolling
-
-            let clientX, clientY;
-            if (e.touches) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
-            }
-
-            const rect = joystickZone.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let dx = clientX - centerX;
-            let dy = clientY - centerY;
-            
-            const maxRadius = rect.width / 2 - joystickKnob.offsetWidth / 2;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            
-            if (distance > maxRadius) {
-                dx = (dx / distance) * maxRadius;
-                dy = (dy / distance) * maxRadius;
-            }
-
-            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-            
-            // Normalize vector for game logic
-            joyVector.x = dx / maxRadius;
-            joyVector.y = dy / maxRadius;
-        }
-
-        function handleJoystickEnd() {
-            isDragging = false;
-            joystickKnob.style.transform = `translate(0px, 0px)`;
-            joyVector.x = 0;
-            joyVector.y = 0;
-        }
-
-        joystickZone.addEventListener('touchstart', handleJoystickStart, {passive: false});
-        joystickZone.addEventListener('touchmove', handleJoystickMove, {passive: false});
-        joystickZone.addEventListener('touchend', handleJoystickEnd);
-        joystickZone.addEventListener('mousedown', handleJoystickStart);
-        window.addEventListener('mousemove', handleJoystickMove);
-        window.addEventListener('mouseup', handleJoystickEnd);
-
-        // --- Buttons ---
-        document.getElementById('switch-cat-btn').addEventListener('click', () => {
-            currentCatIndex = (currentCatIndex + 1) % catFiles.length;
-            loadCat(currentCatIndex);
-        });
-
-        document.getElementById('meow-btn').addEventListener('touchstart', (e) => { e.preventDefault(); doMeow(); });
-        document.getElementById('meow-btn').addEventListener('mousedown', doMeow);
-
-        function doMeow() {
-            if (!currentCatModel || isMeowing) return;
-            isMeowing = true;
-            showMessage("Meow!");
-            
-            // Simple jump animation for meow
-            const startY = currentCatModel.position.y;
-            let jumpTime = 0;
-            const jumpDuration = 0.3; // seconds
-            
-            const jumpInterval = setInterval(() => {
-                jumpTime += 0.016;
-                if (jumpTime >= jumpDuration) {
-                    currentCatModel.position.y = startY;
-                    isMeowing = false;
-                    clearInterval(jumpInterval);
-                } else {
-                    // Parabola equation for jump
-                    const progress = jumpTime / jumpDuration;
-                    const height = Math.sin(progress * Math.PI) * 1.5;
-                    currentCatModel.position.y = startY + height;
-                }
-            }, 16);
-        }
-
-        // --- Game Loop ---
-        const clock = new THREE.Clock();
-        const moveSpeed = 5.0;
-        const turnSpeed = 3.0;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-
-            // Update Animations
-            if (animationMixer) {
-                animationMixer.update(delta);
-            }
-
-            // Move Cat
-            if (currentCatModel && !isMeowing) {
-                // If joystick is pushed
-                if (Math.abs(joyVector.x) > 0.1 || Math.abs(joyVector.y) > 0.1) {
-                    
-                    // Determine target angle based on joystick
-                    // Note: In Three.js, -Z is forward. 
-                    // JoyVector Y is vertical (forward/back), X is horizontal (left/right).
-                    const targetAngle = Math.atan2(-joyVector.x, -joyVector.y);
-                    
-                    // Smoothly interpolate current rotation towards target angle
-                    // Using a simple slerp approximation for the Y axis
-                    let currentAngle = currentCatModel.rotation.y;
-                    
-                    // Normalize angles to avoid spinning the long way around
-                    let diff = targetAngle - currentAngle;
-                    while (diff < -Math.PI) diff += Math.PI * 2;
-                    while (diff > Math.PI) diff -= Math.PI * 2;
-                    
-                    currentCatModel.rotation.y += diff * turnSpeed * delta;
-
-                    // Move Forward
-                    const speed = Math.sqrt(joyVector.x**2 + joyVector.y**2) * moveSpeed;
-                    currentCatModel.translateZ(speed * delta);
-                    
-                    // Keep cat in bounds (Arena is 100x100, bounded at 50)
-                    currentCatModel.position.x = Math.max(-48, Math.min(48, currentCatModel.position.x));
-                    currentCatModel.position.z = Math.max(-48, Math.min(48, currentCatModel.position.z));
-                }
-
-                // Camera follow logic
-                const cameraOffset = new THREE.Vector3(0, 4, 8); // Height and distance behind
-                cameraOffset.applyMatrix4(new THREE.Matrix4().makeRotationY(currentCatModel.rotation.y));
-                
-                const targetCameraPos = currentCatModel.position.clone().add(cameraOffset);
-                // Smooth camera movement
-                camera.position.lerp(targetCameraPos, 5 * delta);
-                camera.lookAt(currentCatModel.position.clone().add(new THREE.Vector3(0, 1, 0)));
-
-                // Check Collectible Collisions
-                for (let i = collectibles.length - 1; i >= 0; i--) {
-                    const yarn = collectibles[i];
-                    yarn.rotation.y += delta * 2; // Spin yarn
-                    yarn.rotation.x += delta;
-
-                    const dist = currentCatModel.position.distanceTo(yarn.position);
-                    if (dist < 1.5) {
-                        // Collected!
-                        scene.remove(yarn);
-                        collectibles.splice(i, 1);
-                        score++;
-                        document.getElementById('score-display').innerText = score;
-                        showMessage("+1 Yarn!");
-                        
-                        // Respawn new yarn
-                        spawnCollectible();
-                    }
-                }
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        // --- Initialization ---
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        window.onload = () => {
-            createEnvironment();
-            loadCat(currentCatIndex);
-            
-            // Hide loading screen
-            setTimeout(() => {
-                document.getElementById('loading-screen').classList.add('hidden-fade');
-            }, 1000);
-
-            animate();
-        };
-    </script>
+const ANIMATION_FILE='cat_-_realistic_3d_model_demo_free.glb';
+const CAT_DEFS={mabel:{name:'Mabel',role:'stealth',file:'mabel.glb',start:[-4,2]},margo:{name:'Margo',role:'speed',file:'margo.glb',start:[0,3]},moxie:{name:'Moxie',role:'distraction',file:'moxie.glb',start:[4,2]}};
+const CAT_IDS=Object.keys(CAT_DEFS);
+const CLIPS={idle:'Cat|Idle_00-IP',walk:'Cat|Walk-IP',trot:'Cat|Trot-IP',run:'Cat|Run-IP',sneak:'Cat|Sneak-IP',jump:'Cat|Jump_Up-IP',sit:'Cat|Sitting_00-IP',sleep:'Cat|Sleeping_V1_01-IP',eat:'Cat|Eating_01-IP',drink:'Cat|Drinking_01-IP',scratch:'Cat|Action_Scratching-IP',turnLeft:'Cat|Trans_TurnL90_OnSpot-IP',turnRight:'Cat|Trans_TurnR90_OnSpot-IP'};
+const LOCOMOTION=new Set(['idle','walk','trot','run','sneak']);
+const ONE_SHOTS=new Set(['jump','sit','sleep','eat','drink','scratch','turnLeft','turnRight']);
+const START_WORLD={yarn:{yarn_0:{x:-7,z:-5},yarn_1:{x:8,z:-3},yarn_2:{x:12,z:8},yarn_3:{x:-12,z:9},yarn_4:{x:1,z:-12},yarn_5:{x:-15,z:-11}},objects:{mailbox:{x:-10,z:1,triggered:false},sprinkler:{x:10,z:2,triggered:false},window:{x:2,z:12,triggered:false},nap:{x:0,z:-16,triggered:false}},mayhem:0};
+const ui={lobby:document.getElementById('lobby-screen'),loading:document.getElementById('loading-screen'),label:document.getElementById('loading-label'),note:document.getElementById('setup-note'),error:document.getElementById('lobby-error'),room:document.getElementById('room-code-input'),hud:document.getElementById('hud'),cat:document.getElementById('cat-name'),connection:document.getElementById('connection-badge'),players:document.getElementById('player-list'),meter:document.getElementById('mayhem-meter'),switch:document.getElementById('switch-cat-btn'),interact:document.getElementById('interact-btn'),meow:document.getElementById('meow-btn'),zone:document.getElementById('joystick-zone'),knob:document.getElementById('joystick-knob'),message:document.getElementById('message-box')};
+const canvas=document.getElementById('game-canvas'),renderer=new THREE.WebGLRenderer({canvas,antialias:true}),scene=new THREE.Scene(),camera=new THREE.PerspectiveCamera(58,1,.1,100),loader=new GLTFLoader();
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,2));renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;scene.background=new THREE.Color(0xa9ddeb);scene.fog=new THREE.Fog(0xa9ddeb,24,64);
+let sourceMesh=null,sourceClips=[],animationReady=false,animationVerification={total:0,cats:{}},currentTargetMesh=null,firebaseApi=null,roomRef=null,roomUnsubscribe=null,eventUnsubscribe=null,messageTimer=null,gameTime=0,lastFrameTime=performance.now(),isMeowing=false,isInteracting=false,isDragging=false;
+const cats={},collectibles={},collecting=new Set(),worldMeshes={},keys={up:false,down:false,left:false,right:false},joy={x:0,y:0};
+const state={mode:'lobby',started:false,connection:'local',roomCode:'',playerId:'',currentCatId:'mabel',players:{},world:JSON.parse(JSON.stringify(START_WORLD)),mayhem:0,lastPublishedAt:0,seenEvents:new Set(),local:{x:-4,z:2,rotation:0,moving:false,action:'idle'}};
+const copyWorld=()=>JSON.parse(JSON.stringify(START_WORLD));
+const roomCode=()=>Array.from({length:5},()=> 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random()*30)]).join('');
+const findMesh=root=>{let result=null;root.traverse(n=>{if(!result&&n.isSkinnedMesh)result=n});return result};
+const findBone=(mesh,name)=>mesh?.skeleton?.bones.find(b=>b.name===name)||null;
+const sourceHas=name=>Boolean(sourceMesh?.skeleton?.bones.some(b=>b.name===name));
+const angleDiff=(a,b)=>{let d=b-a;while(d<-Math.PI)d+=Math.PI*2;while(d>Math.PI)d-=Math.PI*2;return d};
+function chain(mesh,start,allowed){const root=findBone(mesh,start),result=[];let current=root;while(current){result.push(current);current=(current.children||[]).find(n=>n.isBone&&allowed(n.name))||null}return result}
+function addMap(map,target,source){if(findBone(currentTargetMesh,target)&&sourceHas(source))map[target]=source}
+function retargetMap(mesh){currentTargetMesh=mesh;const map={};const targetSpine=chain(mesh,'spine',n=>/^spine(?:\\.\\d+)?$/.test(n));const sourceSpine=['RigSpine1_010','RigSpine2_011','RigSpine3_012','RigChest_013','RigNeck1_00','RigNeck2_014','RigNeck3_015','RigNeck4_016','RigHead_017'];targetSpine.slice(1).forEach((b,i)=>addMap(map,b.name,sourceSpine[Math.min(sourceSpine.length-1,Math.floor(i*sourceSpine.length/Math.max(1,targetSpine.length-1)))]));[['L',['shoulder.L','upper_arm.L','forearm.L','hand.L','f_toe.L'],['RigLFLegCollarbone_033','RigLFLeg1_034','RigLFLeg2_035','RigLFLeg3_036','RigLFLegAnkle_037']],['R',['shoulder.R','upper_arm.R','forearm.R','hand.R','f_toe.R'],['RigRFLegCollarbone_047','RigRFLeg1_048','RigRFLeg2_049','RigRFLeg3_050','RigRFLegAnkle_051']],['L',['pelvis.L','thigh.L','shin.L','foot.L','r_toe.L'],['RigLBLeg1_02','RigLBLeg2_03','RigLBLeg3_04','RigLBLegAnkle_05','RigLBLegDigit11_06']],['R',['pelvis.R','thigh.R','shin.R','foot.R','r_toe.R'],['RigRBLeg1_068','RigRBLeg2_069','RigRBLeg3_070','RigRBLegAnkle_071','RigRBLegDigit11_072']]].forEach(([,targets,sources])=>targets.forEach((t,i)=>addMap(map,t,sources[i])));addMap(map,'face','RigHead_017');addMap(map,'face.001','RigHead_017');addMap(map,'jaw','RigJaw1_018');addMap(map,'jaw_master','RigJaw1_018');addMap(map,'ear.L','RigLEar1_023');addMap(map,'ear.R','RigREar1_024');const tail=chain(mesh,'tail.001',n=>/^tail(?:\\.\\d+)?$/.test(n)),sourceTail=['RigTail1_063','RigTail2_064','RigTail3_065','RigTail4_066','RigTail5_067'];tail.forEach((b,i)=>addMap(map,b.name,sourceTail[Math.min(sourceTail.length-1,Math.floor(i*sourceTail.length/Math.max(1,tail.length)))]));currentTargetMesh=null;return map}
+function playAnimation(id,name,force=false){const cat=cats[id];if(!cat?.actions?.[name])return;if(!force&&cat.active===name&&(!ONE_SHOTS.has(name)||gameTime<cat.oneShotUntil))return;const next=cat.actions[name],old=cat.actions[cat.active];if(old&&old!==next)old.fadeOut(.18);next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(.18).play();cat.active=name;if(id===state.currentCatId)state.local.action=name;if(ONE_SHOTS.has(name))cat.oneShotUntil=gameTime+Math.max(.65,next.getClip().duration)}
+function configureAnimations(cat,mesh){const map=retargetMap(mesh),mixer=new THREE.AnimationMixer(cat.root),actions={};let count=0;Object.entries(CLIPS).forEach(([key,sourceName])=>{const clip=sourceClips.find(c=>c.name===sourceName);if(!clip)return;try{const converted=SkeletonUtils.retargetClip(mesh,sourceMesh,clip,{names:map,hip:'__no_position__',fps:30,preservePosition:true});converted.tracks=converted.tracks.filter(track=>!track.name.endsWith('.position'));converted.tracks.forEach(track=>{if(track.name.startsWith('.'))track.name=mesh.uuid+track.name});converted.name=key;const action=mixer.clipAction(converted);if(ONE_SHOTS.has(key)){action.setLoop(THREE.LoopOnce,1);action.clampWhenFinished=true}actions[key]=action;count++}catch(error){console.warn('Retarget failed',cat.id,key,error)}});mesh.skeleton.pose();mesh.updateMatrixWorld(true);cat.mixer=mixer;cat.actions=actions;cat.active='';cat.oneShotUntil=0;animationVerification.cats[cat.id]=count;animationVerification.total+=count;playAnimation(cat.id,'idle',true)}
+function createEnvironment(){scene.add(new THREE.AmbientLight(0xffffff,.68));const sun=new THREE.DirectionalLight(0xfff6e7,1.05);sun.position.set(8,18,9);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);scene.add(sun);const floor=new THREE.Mesh(new THREE.PlaneGeometry(100,100),new THREE.MeshStandardMaterial({color:0x8bd29d,roughness:1}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;scene.add(floor);const path=new THREE.Mesh(new THREE.PlaneGeometry(18,100),new THREE.MeshStandardMaterial({color:0xe7cfae}));path.rotation.x=-Math.PI/2;path.position.y=.006;scene.add(path);const cross=new THREE.Mesh(new THREE.PlaneGeometry(100,14),new THREE.MeshStandardMaterial({color:0xe7cfae}));cross.rotation.x=-Math.PI/2;cross.position.y=.007;scene.add(cross);const fenceMat=new THREE.MeshStandardMaterial({color:0x9a6a52});[[0,-30,60,1],[0,30,60,1],[-30,0,1,60],[30,0,1,60]].forEach(([x,z,sx,sz])=>{const f=new THREE.Mesh(new THREE.BoxGeometry(sx,1.8,sz),fenceMat);f.position.set(x,.9,z);f.castShadow=true;scene.add(f)});const random=n=>{const v=Math.sin(n*91.17)*43758.5453;return v-Math.floor(v)};for(let i=0;i<24;i++)createTree((random(i+2)-.5)*50,(random(i+40)-.5)*50);createHouse(-13,-8,0xffd5a7);createHouse(13,10,0xf7c6d7);createHouse(-14,13,0xb9d9f2);Object.entries(START_WORLD.yarn).forEach(([id,item])=>createYarn(id,item));createMischief('mailbox',START_WORLD.objects.mailbox,0x4868a8,.6,.6,1.2);createMischief('sprinkler',START_WORLD.objects.sprinkler,0x75a9bb,.45,.25,.45);createMischief('window',START_WORLD.objects.window,0xefd98c,2.2,1.8,.25);createMischief('nap',START_WORLD.objects.nap,0x9b7bb7,2.5,.18,2.5)}
+function createTree(x,z){const g=new THREE.Group(),trunk=new THREE.Mesh(new THREE.CylinderGeometry(.28,.36,1.8,8),new THREE.MeshStandardMaterial({color:0x8a5d42})),leaves=new THREE.Mesh(new THREE.SphereGeometry(1.35,12,8),new THREE.MeshStandardMaterial({color:0x3e9a68}));trunk.position.y=.9;leaves.position.y=2.4;trunk.castShadow=leaves.castShadow=true;g.add(trunk,leaves);g.position.set(x,0,z);scene.add(g)}
+function createHouse(x,z,color){const g=new THREE.Group(),body=new THREE.Mesh(new THREE.BoxGeometry(7,3.5,5.5),new THREE.MeshStandardMaterial({color})),roof=new THREE.Mesh(new THREE.ConeGeometry(5.2,2.5,4),new THREE.MeshStandardMaterial({color:0x76516a}));body.position.y=1.75;roof.position.y=4.7;roof.rotation.y=Math.PI/4;body.castShadow=roof.castShadow=true;g.add(body,roof);g.position.set(x,0,z);scene.add(g)}
+function createYarn(id,item){const mesh=new THREE.Mesh(new THREE.SphereGeometry(.42,16,12),new THREE.MeshStandardMaterial({color:[0xf26798,0x59b8d1,0xf4c15d,0xef8051][Number(id.slice(-1))%4]}));mesh.position.set(item.x,.42,item.z);mesh.castShadow=true;mesh.userData.baseY=.42;scene.add(mesh);collectibles[id]=mesh}
+function createMischief(id,item,color,sx,sy,sz){const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),new THREE.MeshStandardMaterial({color}));mesh.position.set(item.x,sy/2,item.z);mesh.castShadow=true;scene.add(mesh);worldMeshes[id]=mesh}
+function fitCat(root){const box=new THREE.Box3().setFromObject(root),height=Math.max(.01,box.max.y-box.min.y);root.scale.setScalar(.95/height)}
+function snapCamera(){const cat=cats[state.currentCatId];if(!cat)return;camera.position.copy(cat.root.position.clone().add(new THREE.Vector3(0,5.5,11)));camera.lookAt(cat.root.position.clone().add(new THREE.Vector3(0,1,0)))}
+function loadGLTF(url){return new Promise((resolve,reject)=>loader.load(url,resolve,undefined,reject))}
+async function loadAssets(){createEnvironment();ui.label.textContent='Loading the shared cat motion library…';const source=await loadGLTF(ANIMATION_FILE);sourceClips=source.animations||[];sourceMesh=findMesh(source.scene);if(!sourceMesh||!sourceClips.length)throw new Error('The animation library has no skinned cat clips.');source.scene.visible=false;scene.add(source.scene);ui.label.textContent='Retargeting Mabel, Margo, and Moxie…';for(const id of CAT_IDS){const gltf=await loadGLTF(CAT_DEFS[id].file),root=gltf.scene;fitCat(root);root.position.set(CAT_DEFS[id].start[0],0,CAT_DEFS[id].start[1]);root.traverse(n=>{if(n.isMesh){n.castShadow=true;n.receiveShadow=true}});scene.add(root);const mesh=findMesh(root),cat={id,root,targetMesh:mesh,mixer:null,actions:{},active:'',moving:false,oneShotUntil:0};cats[id]=cat;configureAnimations(cat,mesh)}animationReady=true;snapCamera();ui.note.textContent='Animation library ready · '+sourceClips.length+' source clips · '+animationVerification.total+' retargeted actions verified';ui.loading.classList.add('hidden')}
+function showMessage(text){ui.message.textContent=text;ui.message.classList.add('visible');clearTimeout(messageTimer);messageTimer=setTimeout(()=>ui.message.classList.remove('visible'),2200)}
+function onlinePlayers(){return Object.values(state.players).filter(p=>p&&p.online!==false)}
+function firstOpenCat(players){const claimed=new Set(players.map(p=>p.catId));return CAT_IDS.find(id=>!claimed.has(id))||null}
+function localPayload(){const cat=cats[state.currentCatId];return {...state.local,moving:Boolean(cat?.moving),action:cat?.active||state.local.action,playerId:state.playerId,catId:state.currentCatId,online:true,displayName:'You',lastSeen:Date.now(),x:cat?.root.position.x||0,z:cat?.root.position.z||0,rotation:cat?.root.rotation.y||0}}
+async function loadFirebase(){const config=window.WHISKER_FIREBASE_CONFIG;if(!config?.apiKey||!config?.databaseURL)return null;try{const [app,auth,db]=await Promise.all([import('https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js'),import('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js')]);const firebaseApp=app.initializeApp(config),authInstance=auth.getAuth(firebaseApp);await auth.signInAnonymously(authInstance);return{auth,database:db,db:db.getDatabase(firebaseApp),uid:authInstance.currentUser.uid}}catch(error){console.warn('Firebase unavailable; using local preview.',error);return null}}
+const roomPath=code=>firebaseApi.database.ref(firebaseApi.db,'rooms/'+code);
+async function createRoom(remote){state.connection=remote?'firebase':'local';state.roomCode=roomCode();state.playerId=remote?firebaseApi.uid:'local-'+Math.random().toString(36).slice(2,9);state.world=copyWorld();state.mayhem=0;state.players={};state.players[state.playerId]=localPayload();if(remote){roomRef=roomPath(state.roomCode);await firebaseApi.database.set(roomRef,{meta:{hostId:state.playerId,createdAt:firebaseApi.database.serverTimestamp(),maxPlayers:3},players:{[state.playerId]:localPayload()},world:state.world,claims:{[state.currentCatId]:state.playerId}});await attachRoom()}startSession()}
+async function joinRoom(code,remote){const clean=code.trim().toUpperCase();if(!clean)throw new Error('Enter a room code first.');state.connection=remote?'firebase':'local';state.roomCode=clean;state.playerId=remote?firebaseApi.uid:'local-'+Math.random().toString(36).slice(2,9);if(!remote){state.players[state.playerId]=localPayload();startSession();return}roomRef=roomPath(clean);const result=await firebaseApi.database.runTransaction(roomRef,room=>{if(!room?.meta)return room;room.players=room.players||{};room.claims=room.claims||{};const online=Object.values(room.players).filter(p=>p.online!==false&&Date.now()-(p.lastSeen||0)<20000);const catId=firstOpenCat(online);if(online.length>=3||!catId)return;room.players[state.playerId]={playerId:state.playerId,catId,x:CAT_DEFS[catId].start[0],z:CAT_DEFS[catId].start[1],rotation:0,moving:false,action:'idle',online:true,displayName:'Player '+(online.length+1),lastSeen:Date.now()};room.claims[catId]=state.playerId;return room});if(!result.committed)throw new Error('That room is full, missing, or still reconnecting.');await attachRoom();startSession()}
+async function attachRoom(){if(roomUnsubscribe)roomUnsubscribe();if(eventUnsubscribe)eventUnsubscribe();roomUnsubscribe=firebaseApi.database.onValue(roomRef,s=>hydrateRoom(s.val()));eventUnsubscribe=firebaseApi.database.onChildAdded(firebaseApi.database.child(roomRef,'events'),s=>{const event=s.val();if(event?.id&&!state.seenEvents.has(event.id)){state.seenEvents.add(event.id);applyEvent(event)}});const ref=firebaseApi.database.child(roomRef,'players/'+state.playerId);await firebaseApi.database.onDisconnect(ref).update({online:false,lastSeen:firebaseApi.database.serverTimestamp()});await firebaseApi.database.update(ref,{online:true,lastSeen:firebaseApi.database.serverTimestamp()})}
+function hydrateRoom(room){if(!room)return;state.players=Object.fromEntries(Object.entries(room.players||{}).map(([id,p])=>[id,{...p,playerId:id}]));state.world=room.world||state.world;state.mayhem=Number(state.world.mayhem||0);const me=state.players[state.playerId];if(me){state.currentCatId=me.catId||state.currentCatId;state.local={...state.local,...me}}onlinePlayers().forEach(p=>{if(p.playerId!==state.playerId)applyRemote(p)});Object.entries(state.world.yarn||{}).forEach(([id,item])=>{if(collectibles[id])collectibles[id].visible=!item.collected});Object.entries(state.world.objects||{}).forEach(([id,item])=>{if(worldMeshes[id])worldMeshes[id].material.color.setHex(item.triggered?0x94d7bf:id==='mailbox'?0x4868a8:id==='sprinkler'?0x75a9bb:0xefd98c)});updateHUD()}
+function applyRemote(p){const cat=cats[p.catId];if(!cat)return;cat.root.position.x=THREE.MathUtils.lerp(cat.root.position.x,Number(p.x||0),.35);cat.root.position.z=THREE.MathUtils.lerp(cat.root.position.z,Number(p.z||0),.35);cat.root.rotation.y+=angleDiff(cat.root.rotation.y,Number(p.rotation||0))*.35;cat.moving=Boolean(p.moving);if(p.action)playAnimation(cat.id,p.action)}
+function updateHUD(){const cat=CAT_DEFS[state.currentCatId];ui.cat.textContent=cat.name+' · '+cat.role;ui.connection.textContent=(state.connection==='firebase'?'Firebase room':'Local preview')+' · '+state.roomCode;ui.meter.style.width=Math.min(100,state.mayhem)+'%';ui.players.innerHTML=onlinePlayers().map(p=>'<span class="player-pill '+(p.playerId===state.playerId?'self':'')+'">'+(CAT_DEFS[p.catId]?.name||'Cat')+(p.playerId===state.playerId?' · you':'')+'</span>').join('')}
+async function publish(force=false){if(!state.started)return;const now=Date.now();if(!force&&now-state.lastPublishedAt<90)return;state.lastPublishedAt=now;const cat=cats[state.currentCatId];if(cat){state.local.x=cat.root.position.x;state.local.z=cat.root.position.z;state.local.rotation=cat.root.rotation.y}const payload=localPayload();state.players[state.playerId]=payload;if(state.connection==='firebase'&&roomRef)await firebaseApi.database.update(firebaseApi.database.child(roomRef,'players/'+state.playerId),payload);updateHUD()}
+async function switchCat(){const next=CAT_IDS.find(id=>id!==state.currentCatId&&!onlinePlayers().some(p=>p.catId===id));if(!next){showMessage('All three cats are already busy.');return}const previous=state.currentCatId;if(state.connection==='firebase'&&roomRef){const result=await firebaseApi.database.runTransaction(roomRef,room=>{const me=room?.players?.[state.playerId];if(!me||room.claims?.[next])return;room.claims=room.claims||{};delete room.claims[previous];room.claims[next]=state.playerId;me.catId=next;room.players[state.playerId]=me;return room});if(!result.committed){showMessage('That cat was just claimed.');return}}else state.players[state.playerId].catId=next;const old=cats[previous],fresh=cats[next];fresh.root.position.copy(old.root.position);state.currentCatId=next;state.local.action='idle';showMessage('You are now '+CAT_DEFS[next].name+'.');updateHUD();publish(true)}
+function newEventId(){return state.playerId+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6)}
+async function persistMayhem(amount){if(state.connection!=='firebase'||!roomRef)return;const ref=firebaseApi.database.child(roomRef,'world/mayhem');await firebaseApi.database.runTransaction(ref,value=>Math.min(100,Number(value||0)+amount))}
+async function sendEvent(event){const full={...event,id:newEventId(),actor:state.playerId,at:Date.now()};state.seenEvents.add(full.id);applyEvent(full);if(state.connection==='firebase'&&roomRef){const amount=event.type==='collectYarn'?4:event.type==='nap'?20:event.type==='mischief'?10:0;if(amount)await persistMayhem(amount);await firebaseApi.database.push(firebaseApi.database.child(roomRef,'events'),full)}}
+function applyEvent(event){if(event.type==='meow'){showMessage((CAT_DEFS[event.catId]?.name||'A cat')+' says meow!');return}const localEvent=event.actor===state.playerId||state.connection==='local';if(event.type==='collectYarn'){if(state.world.yarn?.[event.itemId])state.world.yarn[event.itemId].collected=true;if(collectibles[event.itemId])collectibles[event.itemId].visible=false;if(localEvent)state.mayhem=Math.min(100,state.mayhem+4);showMessage('+ yarn · +4 mayhem')}if(event.type==='mischief'||event.type==='nap'){if(state.world.objects?.[event.objectId])state.world.objects[event.objectId].triggered=true;if(localEvent)state.mayhem=Math.min(100,state.mayhem+(event.type==='nap'?20:10));showMessage(event.type==='nap'?'The cats nap together · day complete':(CAT_DEFS[event.catId]?.name||'A cat')+' caused chaos!')}state.world.mayhem=state.mayhem;updateHUD()}
+async function collectNearby(){const cat=cats[state.currentCatId];if(!cat)return;const target=Object.entries(collectibles).find(([id,mesh])=>mesh.visible&&!collecting.has(id)&&cat.root.position.distanceTo(mesh.position)<1.8);if(!target)return;const id=target[0];collecting.add(id);try{if(state.connection==='firebase'&&roomRef){const ref=firebaseApi.database.child(roomRef,'world/yarn/'+id),result=await firebaseApi.database.runTransaction(ref,item=>{if(!item||item.collected)return;return{...item,collected:true,collectedBy:state.playerId}});if(!result.committed)return}await sendEvent({type:'collectYarn',itemId:id,catId:state.currentCatId})}finally{collecting.delete(id)}}
+async function interact(){if(isInteracting)return;const cat=cats[state.currentCatId],target=cat&&Object.entries(worldMeshes).find(([id,mesh])=>!state.world.objects[id].triggered&&cat.root.position.distanceTo(mesh.position)<3.2);if(!target){showMessage('Nothing suspicious nearby… yet.');return}isInteracting=true;const objectId=target[0];playAnimation(state.currentCatId,objectId==='nap'?'sleep':'scratch',true);await sendEvent({type:objectId==='nap'?'nap':'mischief',objectId,catId:state.currentCatId});setTimeout(()=>isInteracting=false,900)}
+async function meow(){if(isMeowing)return;isMeowing=true;playAnimation(state.currentCatId,'jump',true);await sendEvent({type:'meow',catId:state.currentCatId});setTimeout(()=>isMeowing=false,850)}
+function startSession(){state.started=true;state.mode='play';snapCamera();ui.lobby.classList.add('hidden');ui.hud.classList.add('active');updateHUD();showMessage('Room '+state.roomCode+' ready · make some trouble')}
+function applyStart(id){state.currentCatId=id;state.local={x:CAT_DEFS[id].start[0],z:CAT_DEFS[id].start[1],rotation:0,moving:false,action:'idle'}}
+async function enter(kind){ui.error.textContent='';try{if(kind==='create'){applyStart('mabel');if(firebaseApi)await createRoom(true);else await createRoom(false)}else if(kind==='local'){applyStart('mabel');await createRoom(false)}else await joinRoom(ui.room.value,Boolean(firebaseApi))}catch(error){ui.error.textContent=error.message||'Unable to open that room.'}}
+function updateGame(delta){if(!state.started)return;gameTime+=delta;const cat=cats[state.currentCatId];if(!cat)return;const x=Math.abs(joy.x)>.08?joy.x:(keys.right?1:0)-(keys.left?1:0),y=Math.abs(joy.y)>.08?joy.y:(keys.down?1:0)-(keys.up?1:0),magnitude=Math.min(1,Math.hypot(x,y));cat.moving=magnitude>.08&&!isMeowing&&!isInteracting;if(cat.moving){const target=Math.atan2(-x,-y);cat.root.rotation.y+=angleDiff(cat.root.rotation.y,target)*Math.min(1,delta*9);const speed=state.currentCatId==='margo'?5.6:state.currentCatId==='mabel'?4.5:4.9;cat.root.translateZ(speed*magnitude*delta);cat.root.position.x=THREE.MathUtils.clamp(cat.root.position.x,-27,27);cat.root.position.z=THREE.MathUtils.clamp(cat.root.position.z,-27,27);playAnimation(cat.id,magnitude>.78?'run':'walk')}else if(!isMeowing&&!isInteracting&&!cat.oneShotUntil)playAnimation(cat.id,'idle');Object.values(cats).forEach(model=>{if(model.mixer)model.mixer.update(delta);if(model.oneShotUntil&&gameTime>=model.oneShotUntil){model.oneShotUntil=0;playAnimation(model.id,model.moving?'walk':'idle')}});Object.entries(collectibles).forEach(([id,mesh])=>{if(mesh.visible){mesh.rotation.y+=delta*2;mesh.position.y=mesh.userData.baseY+Math.sin(gameTime*3+Number(id.slice(-1)))*.06}});onlinePlayers().filter(p=>p.playerId!==state.playerId).forEach(applyRemote);const offset=new THREE.Vector3(0,4.5,8).applyAxisAngle(new THREE.Vector3(0,1,0),cat.root.rotation.y);camera.position.lerp(cat.root.position.clone().add(offset),Math.min(1,delta*5));camera.lookAt(cat.root.position.clone().add(new THREE.Vector3(0,1,0)));collectNearby();publish()}
+function render(){renderer.render(scene,camera)}function frame(){const now=performance.now(),delta=Math.min(.05,Math.max(0,(now-lastFrameTime)/1000));lastFrameTime=now;updateGame(delta);render();requestAnimationFrame(frame)}
+window.advanceTime=ms=>{for(let i=0,steps=Math.max(1,Math.round(ms/(1000/60)));i<steps;i++)updateGame(1/60);render()};
+window.render_game_to_text=()=>JSON.stringify({coordinateSystem:'x east/west, y up, z north/south; camera follows local cat',mode:state.mode,room:state.roomCode||null,connection:state.connection,currentCat:state.currentCatId,animationSource:ANIMATION_FILE,animationReady,retargetedActions:animationVerification.cats,animationMixerRoots:Object.fromEntries(Object.entries(cats).map(([id,cat])=>[id,{root:cat.mixer?._root?.name||null,rootIsSkinned:Boolean(cat.mixer?._root?.isSkinnedMesh),tracks:Object.values(cat.actions||{})[0]?.getClip().tracks[0]?.name||null}])),latestConsoleError,players:onlinePlayers().map(p=>({id:p.playerId,cat:p.catId,x:Number(p.x||0).toFixed(2),z:Number(p.z||0).toFixed(2),action:p.action||'idle',online:p.online!==false})),mayhem:state.mayhem,yarnRemaining:Object.values(state.world.yarn||{}).filter(i=>!i.collected).length,objectsTriggered:Object.values(state.world.objects||{}).filter(i=>i.triggered).length});
+function setKey(code,value){if(code==='ArrowUp'||code==='KeyW')keys.up=value;if(code==='ArrowDown'||code==='KeyS')keys.down=value;if(code==='ArrowLeft'||code==='KeyA')keys.left=value;if(code==='ArrowRight'||code==='KeyD')keys.right=value}
+addEventListener('keydown',e=>{setKey(e.code,true);if(e.code==='Space'){e.preventDefault();meow()}if(e.code==='KeyE'){e.preventDefault();interact()}if(e.code==='KeyF'){if(!document.fullscreenElement)document.documentElement.requestFullscreen?.();else document.exitFullscreen?.()}});addEventListener('keyup',e=>setKey(e.code,false));
+function joystickMove(e){if(!isDragging)return;e.preventDefault();const p=e.touches?.[0]||e,r=ui.zone.getBoundingClientRect(),radius=r.width/2-ui.knob.offsetWidth/2;let dx=p.clientX-(r.left+r.width/2),dy=p.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy);if(d>radius){dx=dx/d*radius;dy=dy/d*radius}ui.knob.style.transform='translate('+dx+'px,'+dy+'px)';joy.x=dx/radius;joy.y=dy/radius}
+function joystickEnd(){isDragging=false;ui.knob.style.transform='translate(0,0)';joy.x=joy.y=0}
+ui.zone.addEventListener('pointerdown',e=>{isDragging=true;ui.zone.setPointerCapture?.(e.pointerId);joystickMove(e)});ui.zone.addEventListener('pointermove',joystickMove);ui.zone.addEventListener('pointerup',joystickEnd);ui.zone.addEventListener('pointercancel',joystickEnd);document.getElementById('create-room-btn').onclick=()=>enter('create');document.getElementById('local-demo-btn').onclick=()=>enter('local');document.getElementById('join-room-btn').onclick=()=>enter('join');ui.switch.onclick=switchCat;ui.interact.onclick=interact;ui.meow.onclick=meow;
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+async function initialize(){renderer.setSize(innerWidth,innerHeight);if(location.protocol==='file:'){state.mode='file-protocol-blocked';ui.loading.classList.add('hidden');ui.note.textContent='This game must be opened through HTTP so the browser can load the GLB files.';ui.error.textContent='Open start-server.command, or run: python3 -m http.server 4173';return}try{await loadAssets()}catch(error){ui.label.textContent='Could not load the cat library.';ui.loading.classList.add('hidden');ui.error.textContent=error.message;return}firebaseApi=await loadFirebase();ui.note.textContent=firebaseApi?'Firebase rooms online · up to three players · shared cat ownership':'Local preview ready. Add your Firebase web config to firebase-config.js to join across devices.';frame()}
+initialize();
+</script>
 </body>
 </html>
