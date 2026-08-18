@@ -1,0 +1,6 @@
+[
+  {
+    "type": "console.error",
+    "text": "THREE.PropertyBinding: Can not bind to bones as node does not have a skeleton. PropertyBinding"
+  }
+]
