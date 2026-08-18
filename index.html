@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Casual Cat Simulator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #87CEEB; /* Sky blue */
+            font-family: 'Inter', sans-serif;
+            touch-action: none; /* Prevent browser zooming/scrolling */
+        }
+        #game-canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        /* Virtual Joystick Styles */
+        #joystick-zone {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #joystick-knob {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            position: absolute;
+            pointer-events: none;
+        }
+        
+        /* Loading Overlay */
+        #loading-screen {
+            transition: opacity 0.5s ease;
+        }
+        .hidden-fade {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- 3D Canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- UI Overlay -->
+    <div id="ui-layer" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-10">
+        
+        <!-- Top Bar: Score & Cat Selector -->
+        <div class="flex justify-between items-start w-full">
+            <div class="bg-white/80 backdrop-blur-md px-4 py-2 rounded-2xl shadow-lg pointer-events-auto border border-white/50">
+                <h1 class="text-xl font-bold text-gray-800 tracking-tight">Yarn: <span id="score-display" class="text-pink-500">0</span></h1>
+            </div>
+            
+            <button id="switch-cat-btn" class="pointer-events-auto bg-gradient-to-r from-purple-500 to-indigo-500 text-white font-bold py-3 px-6 rounded-full shadow-lg active:scale-95 transition-transform border-2 border-white/20">
+                Switch Cat 🔄
+            </button>
+        </div>
+
+        <!-- Bottom Controls -->
+        <div class="flex justify-between items-end w-full pb-4">
+            <!-- Joystick Container (Left) -->
+            <div id="joystick-zone" class="pointer-events-auto">
+                <div id="joystick-knob"></div>
+            </div>
+
+            <!-- Action Button (Right) -->
+            <button id="meow-btn" class="pointer-events-auto bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold w-20 h-20 rounded-full shadow-xl active:scale-90 transition-transform border-4 border-white/30 text-lg flex items-center justify-center mr-4">
+                Meow!
+            </button>
+        </div>
+
+        <!-- Floating Message Box (for notifications) -->
+        <div id="message-box" class="absolute top-20 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full opacity-0 transition-opacity duration-300 pointer-events-none shadow-xl">
+            Message
+        </div>
+    </div>
+
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="absolute inset-0 bg-sky-200 flex flex-col items-center justify-center z-50">
+        <div class="animate-bounce text-6xl mb-4">🐾</div>
+        <h2 class="text-3xl font-extrabold text-sky-800 mb-2">Cat Simulator</h2>
+        <p class="text-sky-600 font-medium">Loading world...</p>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // --- Game State ---
+        let score = 0;
+        let isMeowing = false;
+        const collectibles = [];
+        
+        // --- Cat Data ---
+        const catFiles = ['mabel.glb', 'margo.glb', 'moxie.glb'];
+        const catNames = ['Mabel', 'Margo', 'Moxie'];
+        const fallbackColors = [0xFFA500, 0x555555, 0xFFFFFF]; // Orange, Dark Grey, White
+        let currentCatIndex = 0;
+        let currentCatModel = null;
+        let animationMixer = null;
+        
+        // --- Three.js Setup ---
+        const canvas = document.getElementById('game-canvas');
+        const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.fog = new THREE.Fog(0x87CEEB, 20, 50);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+        
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 20, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.top = 20;
+        dirLight.shadow.camera.bottom = -20;
+        dirLight.shadow.camera.left = -20;
+        dirLight.shadow.camera.right = 20;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        scene.add(dirLight);
+
+        // --- Environment Generation ---
+        function createEnvironment() {
+            // Ground
+            const floorGeo = new THREE.PlaneGeometry(100, 100);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x7CFC00 }); // Grass green
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Fences / Borders
+            const fenceGeo = new THREE.BoxGeometry(100, 2, 1);
+            const fenceMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            
+            const fenceN = new THREE.Mesh(fenceGeo, fenceMat);
+            fenceN.position.set(0, 1, -50);
+            fenceN.castShadow = true;
+            fenceN.receiveShadow = true;
+            scene.add(fenceN);
+
+            const fenceS = new THREE.Mesh(fenceGeo, fenceMat);
+            fenceS.position.set(0, 1, 50);
+            fenceS.castShadow = true;
+            fenceS.receiveShadow = true;
+            scene.add(fenceS);
+
+            const fenceE = new THREE.Mesh(fenceGeo, fenceMat);
+            fenceE.rotation.y = Math.PI / 2;
+            fenceE.position.set(50, 1, 0);
+            fenceE.castShadow = true;
+            fenceE.receiveShadow = true;
+            scene.add(fenceE);
+
+            const fenceW = new THREE.Mesh(fenceGeo, fenceMat);
+            fenceW.rotation.y = Math.PI / 2;
+            fenceW.position.set(-50, 1, 0);
+            fenceW.castShadow = true;
+            fenceW.receiveShadow = true;
+            scene.add(fenceW);
+
+            // Trees
+            for (let i = 0; i < 20; i++) {
+                createTree(
+                    (Math.random() - 0.5) * 80, 
+                    (Math.random() - 0.5) * 80
+                );
+            }
+        }
+
+        function createTree(x, z) {
+            const treeGroup = new THREE.Group();
+            
+            // Trunk
+            const trunkGeo = new THREE.CylinderGeometry(0.3, 0.4, 2);
+            const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.y = 1;
+            trunk.castShadow = true;
+            trunk.receiveShadow = true;
+            treeGroup.add(trunk);
+
+            // Leaves
+            const leavesGeo = new THREE.ConeGeometry(1.5, 3, 8);
+            const leavesMat = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // Forest green
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.y = 3;
+            leaves.castShadow = true;
+            treeGroup.add(leaves);
+
+            treeGroup.position.set(x, 0, z);
+            scene.add(treeGroup);
+        }
+
+        // --- Collectibles (Yarn Balls) ---
+        function spawnCollectible() {
+            const yarnGeo = new THREE.SphereGeometry(0.4, 16, 16);
+            const colors = [0xFF69B4, 0x00BFFF, 0xFFD700, 0xFF4500];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const yarnMat = new THREE.MeshStandardMaterial({ color: randomColor, roughness: 0.8 });
+            
+            const yarn = new THREE.Mesh(yarnGeo, yarnMat);
+            yarn.position.set(
+                (Math.random() - 0.5) * 40,
+                0.4,
+                (Math.random() - 0.5) * 40
+            );
+            yarn.castShadow = true;
+            scene.add(yarn);
+            collectibles.push(yarn);
+        }
+
+        for (let i = 0; i < 10; i++) spawnCollectible();
+
+        // --- Model Loading & Fallbacks ---
+        const gltfLoader = new GLTFLoader();
+
+        function createFallbackCat(colorHex) {
+            const catGroup = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.6 });
+            
+            // Body
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.4), mat);
+            body.position.y = 0.5;
+            body.castShadow = true;
+            catGroup.add(body);
+
+            // Head
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat);
+            head.position.set(0, 0.9, 0.8);
+            head.castShadow = true;
+            catGroup.add(head);
+
+            // Ears
+            const earGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+            const earL = new THREE.Mesh(earGeo, mat);
+            earL.position.set(0.2, 1.3, 0.9);
+            catGroup.add(earL);
+            const earR = new THREE.Mesh(earGeo, mat);
+            earR.position.set(-0.2, 1.3, 0.9);
+            catGroup.add(earR);
+
+            // Tail
+            const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8), mat);
+            tail.position.set(0, 0.7, -0.8);
+            tail.rotation.x = -Math.PI / 4;
+            catGroup.add(tail);
+
+            return catGroup;
+        }
+
+        function showMessage(msg) {
+            const msgBox = document.getElementById('message-box');
+            msgBox.innerText = msg;
+            msgBox.style.opacity = '1';
+            setTimeout(() => {
+                msgBox.style.opacity = '0';
+            }, 2000);
+        }
+
+        function loadCat(index) {
+            if (currentCatModel) {
+                scene.remove(currentCatModel);
+                currentCatModel = null;
+            }
+            if (animationMixer) {
+                animationMixer.stopAllAction();
+                animationMixer = null;
+            }
+
+            const fileName = catFiles[index];
+            const catName = catNames[index];
+            showMessage(`Selecting ${catName}...`);
+
+            gltfLoader.load(
+                fileName,
+                (gltf) => {
+                    currentCatModel = gltf.scene;
+                    
+                    // Center and scale model depending on its original size
+                    currentCatModel.scale.set(1, 1, 1);
+                    
+                    // Add shadows to all meshes inside the loaded GLTF
+                    currentCatModel.traverse((child) => {
+                        if (child.isMesh) {
+                            child.castShadow = true;
+                            child.receiveShadow = true;
+                        }
+                    });
+
+                    scene.add(currentCatModel);
+
+                    // Setup Animations if they exist
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        animationMixer = new THREE.AnimationMixer(currentCatModel);
+                        // Play the first animation (usually Idle or Walk)
+                        const action = animationMixer.clipAction(gltf.animations[0]);
+                        action.play();
+                    }
+                },
+                undefined,
+                (error) => {
+                    console.warn(`Could not load ${fileName}. Using fallback model for ${catName}.`);
+                    // Use Fallback if the user hasn't provided the .glb files
+                    currentCatModel = createFallbackCat(fallbackColors[index]);
+                    scene.add(currentCatModel);
+                }
+            );
+        }
+
+        // --- Controls (Virtual Joystick) ---
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        
+        let isDragging = false;
+        let joyVector = { x: 0, y: 0 }; // Normalized -1 to 1
+
+        function handleJoystickStart(e) {
+            isDragging = true;
+            handleJoystickMove(e);
+        }
+
+        function handleJoystickMove(e) {
+            if (!isDragging) return;
+            e.preventDefault(); // Prevent scrolling
+
+            let clientX, clientY;
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = joystickZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            
+            const maxRadius = rect.width / 2 - joystickKnob.offsetWidth / 2;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance > maxRadius) {
+                dx = (dx / distance) * maxRadius;
+                dy = (dy / distance) * maxRadius;
+            }
+
+            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            
+            // Normalize vector for game logic
+            joyVector.x = dx / maxRadius;
+            joyVector.y = dy / maxRadius;
+        }
+
+        function handleJoystickEnd() {
+            isDragging = false;
+            joystickKnob.style.transform = `translate(0px, 0px)`;
+            joyVector.x = 0;
+            joyVector.y = 0;
+        }
+
+        joystickZone.addEventListener('touchstart', handleJoystickStart, {passive: false});
+        joystickZone.addEventListener('touchmove', handleJoystickMove, {passive: false});
+        joystickZone.addEventListener('touchend', handleJoystickEnd);
+        joystickZone.addEventListener('mousedown', handleJoystickStart);
+        window.addEventListener('mousemove', handleJoystickMove);
+        window.addEventListener('mouseup', handleJoystickEnd);
+
+        // --- Buttons ---
+        document.getElementById('switch-cat-btn').addEventListener('click', () => {
+            currentCatIndex = (currentCatIndex + 1) % catFiles.length;
+            loadCat(currentCatIndex);
+        });
+
+        document.getElementById('meow-btn').addEventListener('touchstart', (e) => { e.preventDefault(); doMeow(); });
+        document.getElementById('meow-btn').addEventListener('mousedown', doMeow);
+
+        function doMeow() {
+            if (!currentCatModel || isMeowing) return;
+            isMeowing = true;
+            showMessage("Meow!");
+            
+            // Simple jump animation for meow
+            const startY = currentCatModel.position.y;
+            let jumpTime = 0;
+            const jumpDuration = 0.3; // seconds
+            
+            const jumpInterval = setInterval(() => {
+                jumpTime += 0.016;
+                if (jumpTime >= jumpDuration) {
+                    currentCatModel.position.y = startY;
+                    isMeowing = false;
+                    clearInterval(jumpInterval);
+                } else {
+                    // Parabola equation for jump
+                    const progress = jumpTime / jumpDuration;
+                    const height = Math.sin(progress * Math.PI) * 1.5;
+                    currentCatModel.position.y = startY + height;
+                }
+            }, 16);
+        }
+
+        // --- Game Loop ---
+        const clock = new THREE.Clock();
+        const moveSpeed = 5.0;
+        const turnSpeed = 3.0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            // Update Animations
+            if (animationMixer) {
+                animationMixer.update(delta);
+            }
+
+            // Move Cat
+            if (currentCatModel && !isMeowing) {
+                // If joystick is pushed
+                if (Math.abs(joyVector.x) > 0.1 || Math.abs(joyVector.y) > 0.1) {
+                    
+                    // Determine target angle based on joystick
+                    // Note: In Three.js, -Z is forward. 
+                    // JoyVector Y is vertical (forward/back), X is horizontal (left/right).
+                    const targetAngle = Math.atan2(-joyVector.x, -joyVector.y);
+                    
+                    // Smoothly interpolate current rotation towards target angle
+                    // Using a simple slerp approximation for the Y axis
+                    let currentAngle = currentCatModel.rotation.y;
+                    
+                    // Normalize angles to avoid spinning the long way around
+                    let diff = targetAngle - currentAngle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    
+                    currentCatModel.rotation.y += diff * turnSpeed * delta;
+
+                    // Move Forward
+                    const speed = Math.sqrt(joyVector.x**2 + joyVector.y**2) * moveSpeed;
+                    currentCatModel.translateZ(speed * delta);
+                    
+                    // Keep cat in bounds (Arena is 100x100, bounded at 50)
+                    currentCatModel.position.x = Math.max(-48, Math.min(48, currentCatModel.position.x));
+                    currentCatModel.position.z = Math.max(-48, Math.min(48, currentCatModel.position.z));
+                }
+
+                // Camera follow logic
+                const cameraOffset = new THREE.Vector3(0, 4, 8); // Height and distance behind
+                cameraOffset.applyMatrix4(new THREE.Matrix4().makeRotationY(currentCatModel.rotation.y));
+                
+                const targetCameraPos = currentCatModel.position.clone().add(cameraOffset);
+                // Smooth camera movement
+                camera.position.lerp(targetCameraPos, 5 * delta);
+                camera.lookAt(currentCatModel.position.clone().add(new THREE.Vector3(0, 1, 0)));
+
+                // Check Collectible Collisions
+                for (let i = collectibles.length - 1; i >= 0; i--) {
+                    const yarn = collectibles[i];
+                    yarn.rotation.y += delta * 2; // Spin yarn
+                    yarn.rotation.x += delta;
+
+                    const dist = currentCatModel.position.distanceTo(yarn.position);
+                    if (dist < 1.5) {
+                        // Collected!
+                        scene.remove(yarn);
+                        collectibles.splice(i, 1);
+                        score++;
+                        document.getElementById('score-display').innerText = score;
+                        showMessage("+1 Yarn!");
+                        
+                        // Respawn new yarn
+                        spawnCollectible();
+                    }
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // --- Initialization ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        window.onload = () => {
+            createEnvironment();
+            loadCat(currentCatIndex);
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading-screen').classList.add('hidden-fade');
+            }, 1000);
+
+            animate();
+        };
+    </script>
+</body>
+</html>
