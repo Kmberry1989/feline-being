@@ -1,25 +1,31 @@
 # Whisker District
 
-Three-player cat mischief prototype. Mabel, Margo, and Moxie use the animation library from cat_-_realistic_3d_model_demo_free.glb; the three named cat files are visual target rigs only.
+A local, single-cat neighborhood sandbox. The playable demo cat can discover every one of its 170 native animations through eight activities: snack and water bowls, a cozy bed, a watching post, a territory post, a shallow pond, an agility course, and a consequence-free toy sparring ring.
 
 ## Local preview
 
-Do not double-click index.html; browsers block GLB loading from file:// pages. Double-click start-server.command, or run python3 -m http.server 4173 in this folder, then open http://127.0.0.1:4173. Choose Local preview. The preview exercises movement, cat switching, source animation retargeting, meowing, yarn pickup, and environmental chaos without requiring a backend.
+Run `python3 -m http.server 4173` in this folder (or double-click `start-server.command`), then open http://127.0.0.1:4173 and choose **Play**. Opening `index.html` through `file://` blocks GLB loading.
 
-## Firebase rooms
-
-The repository is connected to the existing Firebase project whose display name is **Whisker District** (`studio-6552235547-9af30`). The project ID is immutable, so the old ID remains in Firebase URLs and configuration. Its Web app, Anonymous sign-in provider, default Realtime Database, and rules are already configured in the project.
-
-For future rules or auth changes, run `npx firebase-tools@latest deploy --only auth,database --project studio-6552235547-9af30`. Serve the folder from an authorized HTTP domain and open the page on separate devices.
-
-The room supports three active players. Each player claims one unclaimed cat, and a switch releases the old claim atomically before taking the new one. Presence uses onDisconnect to release a cat after a disconnect.
+The page imports Three.js from a CDN, so the browser needs an internet connection. No package installation is needed. `window.render_game_to_text()` and `window.advanceTime(ms)` expose gameplay state and deterministic stepping for browser checks.
 
 ## Controls
 
-- WASD or arrow keys: move
-- Space: meow/jump
-- E or Chaos button: scratch a nearby object or nap at the shared nap spot
-- Switch cat: claim an unclaimed cat
+On a phone, use the left thumb stick to move relative to the camera. Drag the open play area to look around. Tap once to meow and jump, double tap to interact with a nearby object, or press and hold for a moment to sit; holding near an object interacts with it. The on-screen Explore and Meow buttons are direct alternatives to the gestures, and the nearby prompt identifies usable objects. Menu pauses play and offers Resume or Back to title.
+
+- WASD or arrow keys: move in screen direction
+- E: interact with a nearby object or nap spot
+- Space: meow and jump
+- Escape: pause or resume
 - F: fullscreen
 
-The page exposes window.render_game_to_text() and window.advanceTime(ms) for deterministic browser validation.
+Yarn returns after 12 seconds; objects recover after 4 seconds. Mayhem tracks activity up to 100 while play continues.
+
+## Activities and discovery
+
+Double tap near an activity for its natural multi-move sequence. Press and hold, then release, to choose any animation assigned to that activity. The contextual sheet includes both original and in-place variants; model-root translation is stabilized because movement remains under game control.
+
+The pause menu contains a discovery journal with hints and per-activity totals. Discovery is stored locally in the browser. Sparring uses aggressive, attack, hit, and theatrical flop animations as harmless play, and the cat always recovers to idle. Territory marking is optional at its designated post.
+
+## Future multiplayer work
+
+The earlier Firebase room transport, database rules, and the Mabel/Margo/Moxie model files remain in the repository for a later multiplayer pass. Room controls are currently hidden from the local sandbox. Multiplayer behavior has not been validated for this single-cat version.
